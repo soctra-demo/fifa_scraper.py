@@ -103,7 +103,7 @@ def main():
         # Save raw metrics log
         if ch_stats:
             supabase.table('fifa_team_metrics').insert({
-                'team_name':          team['name'],
+                'team_name':          team['team_name'],
                 'recorded_at':      now,
                 'subscriber_count': ch_stats['subscribers'],
                 'recent_views_24h': engagement['views'],
