@@ -91,11 +91,11 @@ def main():
             'current_price':    new_price,
             'price_24h_change': change_pct,
             'last_updated':     now
-        }).eq('id', team['id']).execute()
+        }).eq('team_name', team['team_name']).execute()
 
         # Save to price history (powers the trend charts)
         supabase.table('fifa_price_history').insert({
-            'team_id':     team['id'],
+            'team_name':     team['team_name'],
             'price':       new_price,
             'recorded_at': now
         }).execute()
