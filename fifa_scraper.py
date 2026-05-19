@@ -101,17 +101,19 @@ def main():
         }).execute()
 
         # Save raw metrics log
-        if ch_stats:
-            supabase.table('fifa_team_metrics').insert({
-                'team_name':          team['team_name'],
-                'recorded_at':      now,
-                'subscriber_count': ch_stats['subscribers'],
-                'recent_views_24h': engagement['views'],
-                'recent_likes_24h': engagement['likes'],
-                'calculated_price': new_price
-            }).execute()
-
-        print(f"  ✅ Price: {new_price} | Change: {change_pct}%")
+if ch_stats:
+    try:
+        result = supabase.table('fifa_team_metrics').insert({
+            'team_name':          team['team_name'],
+            'recorded_at':        now,
+            'subscriber_count': ch_stats['subscribers'],
+            'recent_views_24h': engagement['views'],
+            'recent_likes_24h': engagement['likes'],
+            'calculated_price': new_price
+        }).execute()
+        print(f"  ✅ Metrics saved: {result}")
+    except Exception as e:
+        print(f"  ❌ Metrics insert failed: {e}")
 
 if __name__ == "__main__":
     main()
