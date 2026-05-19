@@ -101,19 +101,53 @@ def main():
         }).execute()
 
         # Save raw metrics log
-if ch_stats:
-    try:
-        result = supabase.table('fifa_team_metrics').insert({
-            'team_name':          team['team_name'],
-            'recorded_at':        now,
-            'subscriber_count': ch_stats['subscribers'],
-            'recent_views_24h': engagement['views'],
-            'recent_likes_24h': engagement['likes'],
-            'calculated_price': new_price
-        }).execute()
-        print(f"  ✅ Metrics saved: {result}")
-    except Exception as e:
-        print(f"  ❌ Metrics insert failed: {e}")
+def main():
+    teams = supabase.table('fifa_teams').select('*').eq('is_active', True).execute()
+    now   = datetime.now(timezone.utc).isoformat()
 
+    for team in teams.data:
+        print(f"Scraping {team['team_name']}...")
+        cid       = team['youtube_channel_id']
+        old_price = float(team.get('current_price') or 100.0)
+
+        ch_stats   = get_channel_stats(cid)
+        engagement = get_recent_engagement(cid)
+        new_price  = calculate_price(ch_stats, engagement)
+
+        # Work out % change vs previous price
+        change_pct = round(((new_price - old_price) / old_price) * 100, 2) \
+                     if old_price > 0 else 0.0
+
+        # Update the team row
+        supabase.table('fifa_teams').update({
+            'current_price':    new_price,
+            'price_24h_change': change_pct,
+            'last_updated':     now
+        }).eq('team_name', team['team_name']).execute()
+
+        # Save to price history (powers the trend charts)
+        supabase.table('fifa_price_history').insert({
+            'team_name':     team['team_name'],
+            'price':       new_price,
+            'recorded_at': now
+        }).execute()
+
+        # Save raw metrics log
+        if ch_stats:
+            try:
+                result = supabase.table('fifa_team_metrics').insert({
+                    'team_name':          team['team_name'],
+                    'recorded_at':        now,
+                    'subscriber_count': ch_stats['subscribers'],
+                    'recent_views_24h': engagement['views'],
+                    'recent_likes_24h': engagement['likes'],
+                    'calculated_price': new_price
+                }).execute()
+                print(f"  ✅ Metrics saved: {result}")
+            except Exception as e:
+                print(f"  ❌ Metrics insert failed: {e}")
+
+if __name__ == "__main__":
+    main()
 if __name__ == "__main__":
     main()
