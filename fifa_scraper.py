@@ -15,45 +15,56 @@ def get_channel_stats(channel_id):
     # Fetches subscriber count and total view count for a channel
     url = "https://www.googleapis.com/youtube/v3/channels"
     params = {'part': 'statistics', 'id': channel_id, 'key': YOUTUBE_API_KEY}
-    data = requests.get(url, params=params).json()
-    if not data.get('items'):
+    try:
+        data = requests.get(url, params=params).json()
+        if not data.get('items'):
+            print(f"    ⚠️  No items in channel response for {channel_id}")
+            return None
+        stats = data['items'][0]['statistics']
+        return {
+            'subscribers': int(stats.get('subscriberCount', 0)),
+            'total_views':  int(stats.get('viewCount', 0))
+        }
+    except Exception as e:
+        print(f"    ❌ Error fetching channel stats: {e}")
         return None
-    stats = data['items'][0]['statistics']
-    return {
-        'subscribers': int(stats.get('subscriberCount', 0)),
-        'total_views':  int(stats.get('viewCount', 0))
-    }
 
 def get_recent_engagement(channel_id):
     # Step A: Get the channel's uploads playlist ID
     url = "https://www.googleapis.com/youtube/v3/channels"
     params = {'part': 'contentDetails', 'id': channel_id, 'key': YOUTUBE_API_KEY}
-    data = requests.get(url, params=params).json()
-    if not data.get('items'):
+    try:
+        data = requests.get(url, params=params).json()
+        if not data.get('items'):
+            print(f"    ⚠️  No items in engagement response for {channel_id}")
+            return {'views': 0, 'likes': 0}
+
+        uploads_id = data['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+
+        # Step B: Get the 5 most recent videos
+        url2 = "https://www.googleapis.com/youtube/v3/playlistItems"
+        params2 = {'part': 'contentDetails', 'playlistId': uploads_id,
+                   'maxResults': 5, 'key': YOUTUBE_API_KEY}
+        data2 = requests.get(url2, params2).json()
+        if not data2.get('items'):
+            print(f"    ⚠️  No recent videos found for {channel_id}")
+            return {'views': 0, 'likes': 0}
+
+        video_ids = [i['contentDetails']['videoId'] for i in data2['items']]
+
+        # Step C: Get stats for those videos
+        url3 = "https://www.googleapis.com/youtube/v3/videos"
+        params3 = {'part': 'statistics', 'id': ','.join(video_ids), 'key': YOUTUBE_API_KEY}
+        data3 = requests.get(url3, params3).json()
+
+        total_views = sum(int(v['statistics'].get('viewCount', 0))
+                          for v in data3.get('items', []))
+        total_likes = sum(int(v['statistics'].get('likeCount', 0))
+                          for v in data3.get('items', []))
+        return {'views': total_views, 'likes': total_likes}
+    except Exception as e:
+        print(f"    ❌ Error fetching engagement: {e}")
         return {'views': 0, 'likes': 0}
-
-    uploads_id = data['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-
-    # Step B: Get the 5 most recent videos
-    url2 = "https://www.googleapis.com/youtube/v3/playlistItems"
-    params2 = {'part': 'contentDetails', 'playlistId': uploads_id,
-               'maxResults': 5, 'key': YOUTUBE_API_KEY}
-    data2 = requests.get(url2, params2).json()
-    if not data2.get('items'):
-        return {'views': 0, 'likes': 0}
-
-    video_ids = [i['contentDetails']['videoId'] for i in data2['items']]
-
-    # Step C: Get stats for those videos
-    url3 = "https://www.googleapis.com/youtube/v3/videos"
-    params3 = {'part': 'statistics', 'id': ','.join(video_ids), 'key': YOUTUBE_API_KEY}
-    data3 = requests.get(url3, params3).json()
-
-    total_views = sum(int(v['statistics'].get('viewCount', 0))
-                      for v in data3.get('items', []))
-    total_likes = sum(int(v['statistics'].get('likeCount', 0))
-                      for v in data3.get('items', []))
-    return {'views': total_views, 'likes': total_likes}
 
 def calculate_price(channel_stats, engagement):
     # Price formula: weighted score from subscribers, recent views, recent likes
@@ -72,9 +83,11 @@ def calculate_price(channel_stats, engagement):
 def main():
     teams = supabase.table('fifa_teams').select('*').eq('is_active', True).execute()
     now   = datetime.now(timezone.utc).isoformat()
+    
+    print(f"🔍 Found {len(teams.data)} active teams")
 
     for team in teams.data:
-        print(f"Scraping {team['team_name']}...")
+        print(f"\nScraping {team['team_name']}...")
         cid       = team['youtube_channel_id']
         old_price = float(team.get('current_price') or 100.0)
 
@@ -111,9 +124,11 @@ def main():
                     'recent_likes_24h': engagement['likes'],
                     'calculated_price': new_price
                 }).execute()
-                print(f"  ✅ Metrics saved: {result}")
+                print(f"  ✅ Metrics saved for {team['team_name']}")
             except Exception as e:
-                print(f"  ❌ Metrics insert failed: {e}")
+                print(f"  ❌ Metrics insert failed for {team['team_name']}: {e}")
+        else:
+            print(f"  ⚠️  Skipped metrics for {team['team_name']} (no channel stats)")
 
 if __name__ == "__main__":
     main()
