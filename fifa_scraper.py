@@ -17,7 +17,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # Tuned for YouTube-sourced FIFA team engagement data.
 V_BASE             = 8.0    # V_base: baseline constant, ensures non-zero starting valuation
 OMEGA1             = 0.7    # ω1: weight for cumulative engagement (log compression term)
-OMEGA2             = 30.0   # ω2: weight for incremental momentum — amplifies daily swings
+OMEGA2             = 8.0   # ω2: weight for incremental momentum — amplifies daily swings
 ALPHA              = 2.0    # α: sensitivity scaling factor applied to S(t)
 BETA               = 0.75   # β: scale of surge/dip adjustment via Φ(t)
 KAPPA              = 1.2    # κ: steepness of tanh curve controlling surge response
