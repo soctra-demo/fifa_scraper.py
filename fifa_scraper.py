@@ -22,7 +22,7 @@ ALPHA              = 2.0    # α: sensitivity scaling factor applied to S(t)
 BETA               = 0.75   # β: scale of surge/dip adjustment via Φ(t)
 KAPPA              = 1.2    # κ: steepness of tanh curve controlling surge response
 DELTA              = 0.30   # δ: anomaly penalty coefficient via Ψ(t)
-MAX_CHANGE_PER_RUN = 0.12   # System guardrail: max 5% price shift per hourly scrape
+MAX_CHANGE_PER_RUN = 0.25   # System guardrail: max 5% price shift per hourly scrape
 
 
 # ─────────────────────────────────────────────────────────────────────────────
